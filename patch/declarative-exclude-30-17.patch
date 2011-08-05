@@ -1,0 +1,90 @@
+diff -r 0b15ef654978 sqlautocode/config.py
+--- a/sqlautocode/config.py Sat Oct 30 15:47:19 2010 +0200
++++ b/sqlautocode/config.py Sun Dec 26 13:02:58 2010 +0200
+@@ -37,6 +37,11 @@
+         action="callback", callback=_prep_schema, type="string", dest="schema")
+
+     parser.add_option(
++            '--exclude',
++            help="Optional, exclude tables based on a regex expression",
++            dest="exclude")
++
++    parser.add_option(
+         "-t", "--tables",
+         help=("Optional, only reflect this comma-separated list of tables. "
+               "Wildcarding with '*' is supported, e.g: --tables account_*,"
+diff -r 0b15ef654978 sqlautocode/declarative.py
+--- a/sqlautocode/declarative.py    Sat Oct 30 15:47:19 2010 +0200
++++ b/sqlautocode/declarative.py    Sun Dec 26 13:02:58 2010 +0200
+@@ -1,6 +1,6 @@
+ import sys, re, inspect, operator
+ import logging
+-from util import emit, name2label, plural, singular
++from util import emit, name2label, plural, singular, glob_intersection
+ try:
+     from cStringIO import StringIO
+ except ImportError:
+@@ -171,7 +171,34 @@
+             return self._models
+         self.used_model_names = []
+         self.used_table_names = []
+-        self._models = sorted((self.create_model(table) for table in self.get_non_many_to_many_tables()), by__name__)
++        
++        tables = self.config.options.tables
++        if tables:
++            subset, missing, unglobbed = glob_intersection([t.name for t in self.get_non_many_to_many_tables()], tables)
++            for identifier in missing:
++                print >>config.err, 'Table "%s" not found.' % identifier
++            for glob in unglobbed:
++                print >>config.err, '"%s" matched no tables.' % glob
++            if not subset:
++                print >>config.err, "No tables matched!"
++                sys.exit(1)
++
++            do_tables = [t for t in self.get_non_many_to_many_tables() if t.name in subset]
++        else:
++            do_tables = self.get_non_many_to_many_tables()
++    
++        exclude = self.config.options.exclude
++        if exclude:
++            do_tables = [t for t in do_tables if not re.search(exclude, t.name)]
++
++        models = []
++        for table in self.get_non_many_to_many_tables():
++            try:
++                model = self.create_model(table)
++                models.append(model)
++            except Exception, e:
++                logging.warning("Error creating a model for %s: %s", table, e)
++        self._models = sorted(models, by__name__)
+         return self._models
+     
+     def model_table_lookup(self):
+diff -r 0b15ef654978 sqlautocode/main.py
+--- a/sqlautocode/main.py   Sat Oct 30 15:47:19 2010 +0200
++++ b/sqlautocode/main.py   Sun Dec 26 13:02:58 2010 +0200
+@@ -1,3 +1,4 @@
++import re
+ import sys
+ import config, util, constants
+ from util import emit
+@@ -46,7 +47,6 @@
+     # fixme: don't set up output until we're sure there's work to do!
+     if options.tables:
+-        subset, missing, unglobbed = util.glob_intersection(tablenames,
+-                                                            options.tables)
++        subset, missing, unglobbed = util.glob_intersection(tablenames, options.tables)
+         for identifier in missing:
+             print >>config.err, 'Table "%s" not found.' % identifier
+         for glob in unglobbed:
+@@ -57,7 +57,10 @@
+             sys.exit(1)
+
+         tablenames = subset
++    
++    if options.exclude:
++        tablenames = [table for table in tablenames if not re.search(table, options.exclude)]
+
+     # some header with imports
+     if options.generictypes:
+         dialect = ''
