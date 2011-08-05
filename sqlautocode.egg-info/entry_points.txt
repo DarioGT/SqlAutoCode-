@@ -1,0 +1,3 @@
+[console_scripts]
+sqlautocode = sqlautocode.main:main
+

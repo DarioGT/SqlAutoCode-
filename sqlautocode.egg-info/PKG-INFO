@@ -1,0 +1,13 @@
+Metadata-Version: 1.0
+Name: sqlautocode
+Version: 0.6b1
+Summary: AutoCode is a flexible tool to autogenerate a model from an existing database.
+Home-page: http://code.google.com/p/sqlautocode/
+Author: Simon Pamies
+Author-email: s.pamies@banality.de
+License: MIT
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python
