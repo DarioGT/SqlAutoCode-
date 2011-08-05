@@ -395,7 +395,7 @@ class ModelFactory(object):
         for table in self.get_many_to_many_tables():
             for column in table.columns:
                 if column.foreign_keys:
-                    key = column.foreign_keys[0]
+                    key = list(column.foreign_keys)[0]
                     if key.column.table is src_table:
                         tables.append(table)
                         break
